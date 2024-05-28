@@ -1,14 +1,25 @@
 require('dotenv').config();
-const { Bot } = require('grammy');
+const { Bot, Keyboard } = require('grammy');
 
 const bot = new Bot(process.env.BOT_API_KEY);
 
+bot.command('start').filter((ctx) => {
+    return ctx.msg.chat?.username === "Ad_Impossibilia_Nemo_Obligatur" //"jullibondarenko"
+}, async (ctx) => {
+    await ctx.reply(`Привіт, ${ctx.msg.chat?.first_name}`)
+})
+
 bot.command('start', async (ctx) => {
-    await ctx.reply('Hello');
+    await ctx.reply(`Привіт, <b>${ctx.msg.chat?.first_name}</b>!`, {
+        parse_mode: 'HTML'
+    })
 });
 
 bot.on('message', async (ctx) => {
-    await ctx.reply('Let me think');
+    const scheduleKeyboard = new Keyboard().text("Понеділок 20:00").row().text("Вівторок 19:00").row().text("Середа 20:00").row().text("Четверг 19:00").row().text("Пʼятниця 20:00").resized().oneTime();
+    await ctx.reply('Обери день для запису', {
+        reply_markup: scheduleKeyboard
+    });
 });
 
 
