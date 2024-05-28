@@ -16,12 +16,18 @@ bot.command('start', async (ctx) => {
 });
 
 bot.on('message', async (ctx) => {
-    const scheduleKeyboard = new Keyboard().text("Понеділок 20:00").row().text("Вівторок 19:00").row().text("Середа 20:00").row().text("Четверг 19:00").row().text("Пʼятниця 20:00").resized().oneTime();
+    const scheduleLabels = ["Понеділок 20:00", "Вівторок 19:00", "Середа 20:00", "Четверг 19:00", "Пʼятниця 20:00"];
+    const scheduleOptions = scheduleLabels.map((label) => {
+        return [
+            Keyboard.text(label)
+        ]
+    });
+    const scheduleKeyboard = Keyboard.from(scheduleOptions).resized().oneTime();
+    
     await ctx.reply('Обери день для запису', {
         reply_markup: scheduleKeyboard
     });
 });
-
 
 //Error handlers
 bot.catch((err) => {
