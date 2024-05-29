@@ -1,20 +1,25 @@
-require('dotenv').config();
-const { Bot, Keyboard, InlineKeyboard } = require('grammy');
-const { hydrate } = require('@grammyjs/hydrate');
+import 'dotenv/config';
+import { Bot, InlineKeyboard } from 'grammy';
+import { hydrate } from '@grammyjs/hydrate';
+import { getRecordsOptions } from './helper/getRecordsOptions.js';
+import { keyboardGenerator } from './helper/keyboardGenerator.js'
 
 const bot = new Bot(process.env.BOT_API_KEY);
 bot.use(hydrate());
 
-const scheduleKeyboard = new InlineKeyboard()
-    .text("Понеділок 20:00", "monday").row()
-    .text("Вівторок 19:00", "tuesday").row()
-    .text("Середа 20:00", "wednesday").row()
-    .text("Четверг 19:00", "thursday").row()
-    .text("Пʼятниця 20:00", "friday").row()
-    .text('Показати мої записи', 'all_records');
+const allRecords = new Set();
+
+const scheduleOptions = [
+    { value: "monday", label: "Понеділок 20:00" },
+    { value: "tuesday", label: "Вівторок 19:00" },
+    { value: "wednesday", label: "Середа 20:00" },
+    { value: "thursday", label: "Четверг 19:00" },
+    { value: "friday", label: "Пʼятниця 20:00" },
+    { value: "all_records", label: "Показати мої записи"}
+];
+
 const backKeyboard = new InlineKeyboard()
     .text('< Повернутись до меню', 'back');
-const recordedList = new Set();
 
 bot.command('start').filter((ctx) => {
     return ctx.msg.chat?.username === "Ad_Impossibilia_Nemo_Obligatur" //"jullibondarenko"
@@ -30,20 +35,19 @@ bot.command('start', async (ctx) => {
 
 bot.on('message', async (ctx) => {
     await ctx.reply('Обери день для запису', {
-        reply_markup: scheduleKeyboard
+        reply_markup: keyboardGenerator(scheduleOptions)
     });
 });
 
 bot.callbackQuery('all_records', async (ctx) => {
-    const scheduleOptionsText = [...recordedList] ? `Ви записані на ${[...recordedList]}` : 'Наразі записів не знайдено'; 
+    const scheduleOptionsText = [...allRecords].length ? 'Ви записані на ->' : 'Наразі записів не знайдено'; 
     await ctx.callbackQuery.message.editText(`${scheduleOptionsText}`, {
-        reply_markup: backKeyboard,
+        reply_markup: [...allRecords].length ? keyboardGenerator(getRecordsOptions(scheduleOptions, allRecords)) : backKeyboard,
     });
 })
 
 bot.callbackQuery(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'], async (ctx) => {
-    recordedList.add(ctx.callbackQuery.data);
-    console.log(recordedList);
+    allRecords.add(ctx.callbackQuery.data);
     await ctx.callbackQuery.message.editText(`Ви записались на ${ctx.callbackQuery.data}`, {
         reply_markup: backKeyboard,
     });
@@ -52,16 +56,10 @@ bot.callbackQuery(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'], asyn
 
 bot.callbackQuery('back', async (ctx) => {
     await ctx.callbackQuery.message.editText('Обери день для запису', {
-        reply_markup: scheduleKeyboard,
+        reply_markup: keyboardGenerator(scheduleOptions),
     });
     await ctx.answerCallbackQuery();
 });
-
-// bot.on('callback_query:data', async (ctx) => {
-//     await ctx.answerCallbackQuery();
-//     console.log(ctx.callbackQuery.message.reply_markup.inline_keyboard.text);
-//     await ctx.reply(`Ви записались на ${ctx.callbackQuery.data}`);
-// });
 
 //Error handlers
 bot.catch((err) => {
