@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@grammyjs/hydrate": "^1.4.1",
     "dotenv": "^16.4.5",
     "grammy": "^1.23.1",
     "nodemon": "^3.1.1"
