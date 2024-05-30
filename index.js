@@ -41,8 +41,7 @@ bot.command('start', async (ctx) => {
 });
 
 bot.on('message', async (ctx) => {
-    const userName = ctx.message.text;
-    await ctx.reply(`<b>${userName}</b>, для запису <i>оберіть</i> та <u>натисніть</u> на відповідний день із списку: `, {
+    await ctx.reply('Для запису <i>оберіть</i> та <u>натисніть</u> на відповідний день із списку: ', {
         parse_mode: 'HTML',
         reply_markup: keyboardGenerator(scheduleOptions)
     });
