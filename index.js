@@ -6,6 +6,22 @@ import { keyboardGenerator } from './helper/keyboardGenerator.js'
 import {initializeApp} from "firebase/app";
 import {getFirestore} from "firebase/firestore";
 import * as functions from "firebase-functions";
+import {doc,collection, setDoc, getDoc, updateDoc, addDoc} from "firebase/firestore"
+
+
+const firebaseConfig = {
+    apiKey: "AIzaSyA4BtOR_2xBX6vmuqES5a6qVfwfp3M3Cwo",
+    authDomain: "cycle-bot-997b0.firebaseapp.com",
+    projectId: "cycle-bot-997b0",
+    storageBucket: "cycle-bot-997b0.appspot.com",
+    messagingSenderId: "748030380319",
+    appId: "1:748030380319:web:83e0d7c7aa35bac646c82a"
+  };
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+// Initialize Cloud Firestore and get a reference to the service
+const db = getFirestore(app);
 
 const bot = new Bot(process.env.BOT_API_KEY);
 bot.use(hydrate());
@@ -38,6 +54,10 @@ bot.command('start').filter((ctx) => {
 })
 
 bot.command('start', async (ctx) => {
+    const userId = ctx.msg.from.id.toString()
+    const userRef = doc(db, 'users', userId)
+    await setDoc(userRef, {id: ctx.msg.from.id})
+
     await ctx.reply(`Привіт, <b>${ctx.msg.chat?.first_name}</b>!\n\nДля запису напишіть Ваше <i>імʼя</i>.`, {
         parse_mode: 'HTML'
     })
@@ -86,6 +106,13 @@ bot.callbackQuery('remove', async (ctx) => {
 
 bot.callbackQuery(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'], async (ctx) => {
     allRecords.add(ctx.callbackQuery.data);
+    const userId = ctx.msg.from.id.toString();
+    const userRef = doc(db, 'users', userId);
+    const userTrainingsRef = collection(db, 'users', userId, 'trainings');
+    const userData = (await getDoc(userRef)).data();
+    console.log('userData', userData);
+    await addDoc(userTrainingsRef, {date: ctx.callbackQuery.data, status: 'signed'});
+    // await updateDoc(userRef, {})
     await ctx.callbackQuery.message.editText(`<b>Дякую за запис!</b>\n\nВи записались на <u>${ctx.callbackQuery.data}</u>.`, {
         parse_mode: 'HTML',
         reply_markup: newRecordKeyboard,
@@ -114,19 +141,5 @@ bot.catch((err) => {
       console.error("Unknown error:", e);
     }
   });
-
-const firebaseConfig = {
-    apiKey: "AIzaSyA4BtOR_2xBX6vmuqES5a6qVfwfp3M3Cwo",
-    authDomain: "cycle-bot-997b0.firebaseapp.com",
-    projectId: "cycle-bot-997b0",
-    storageBucket: "cycle-bot-997b0.appspot.com",
-    messagingSenderId: "748030380319",
-    appId: "1:748030380319:web:83e0d7c7aa35bac646c82a"
-  };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-// Initialize Cloud Firestore and get a reference to the service
-const db = getFirestore(app);
 
 export const startBot = functions.https.onRequest(webhookCallback(bot));
