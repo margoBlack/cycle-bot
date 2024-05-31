@@ -11,12 +11,13 @@ import getNextTrainingsDates from "./helper/getNextTrainingsDates.js";
 
 
 const firebaseConfig = {
-    apiKey: "AIzaSyArR5C-fSDQvdkaZW1cgpdiW7GRfj42JKw",
-    authDomain: "cycle-demo-88638.firebaseapp.com",
-    projectId: "cycle-demo-88638",
-    storageBucket: "cycle-demo-88638.appspot.com",
-    messagingSenderId: "752500047079",
-    appId: "1:752500047079:web:4216e306a864639c943642"
+    apiKey: "AIzaSyA4BtOR_2xBX6vmuqES5a6qVfwfp3M3Cwo",
+    apiKey: "AIzaSyA4BtOR_2xBX6vmuqES5a6qVfwfp3M3Cwo",
+    authDomain: "cycle-bot-997b0.firebaseapp.com",
+    projectId: "cycle-bot-997b0",
+    storageBucket: "cycle-bot-997b0.appspot.com",
+    messagingSenderId: "748030380319",
+    appId: "1:748030380319:web:83e0d7c7aa35bac646c82a"
   };
 
 // Initialize Firebase
@@ -53,7 +54,7 @@ const removeKeyboard = new InlineKeyboard()
     .text('📍 Повернутись до меню', 'back');
 
 bot.on('message').filter((ctx) => {
-    return ctx.msg.chat?.username === "dianalyvytska" && ctx.msg.text === 'add_days'
+    return ctx.msg.chat?.username === "Ad_Impossibilia_Nemo_Obligatur" && ctx.msg.text === 'add_days'
 }, async (ctx) => {
     const nextDates = getNextTrainingsDates(schedule);
     const trainingsRef = collection(db, 'trainings');
@@ -71,7 +72,7 @@ bot.on('message').filter((ctx) => {
 })
 
 bot.on('message').filter((ctx) => {
-    return ctx.msg.chat?.username === "dianalyvytska" && ctx.msg.text === 'get_schedule'
+    return ctx.msg.chat?.username === "Ad_Impossibilia_Nemo_Obligatur" && ctx.msg.text === 'get_schedule'
 }, async (ctx) => {
     const now = new Date()
     const trainingsRef = collection(db, 'trainings');
@@ -104,7 +105,7 @@ bot.on("callback_query:data").filter(ctx => ctx.callbackQuery.data.startsWith('$
         ctx.reply('Ви були записані')
     }
 
-    await ctx.answerCallbackQuery(); // remove loading animation
+    // await ctx.answerCallbackQuery(); // remove loading animation
 });
 
 bot.command('start').filter((ctx) => {
@@ -129,7 +130,7 @@ bot.on('message', async (ctx) => {
     const querySnap = await getDocs(query(trainingsRef, where("date", ">=", now)))
     const options = []
     querySnap.forEach(day => {
-        const data =  day.data()
+        const data = day.data()
         options.push({
             value: '$'+day.id,
             label: data.label
