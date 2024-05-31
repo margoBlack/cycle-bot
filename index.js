@@ -6,16 +6,17 @@ import { keyboardGenerator } from './helper/keyboardGenerator.js'
 import {initializeApp} from "firebase/app";
 import {getFirestore} from "firebase/firestore";
 import * as functions from "firebase-functions";
-import {doc,collection, setDoc, getDoc, updateDoc, addDoc} from "firebase/firestore"
+import {doc,collection, setDoc, getDoc, updateDoc, addDoc, getDocs, query, where, arrayUnion} from "firebase/firestore"
+import getNextTrainingsDates from "./helper/getNextTrainingsDates.js";
 
 
 const firebaseConfig = {
-    apiKey: "AIzaSyA4BtOR_2xBX6vmuqES5a6qVfwfp3M3Cwo",
-    authDomain: "cycle-bot-997b0.firebaseapp.com",
-    projectId: "cycle-bot-997b0",
-    storageBucket: "cycle-bot-997b0.appspot.com",
-    messagingSenderId: "748030380319",
-    appId: "1:748030380319:web:83e0d7c7aa35bac646c82a"
+    apiKey: "AIzaSyArR5C-fSDQvdkaZW1cgpdiW7GRfj42JKw",
+    authDomain: "cycle-demo-88638.firebaseapp.com",
+    projectId: "cycle-demo-88638",
+    storageBucket: "cycle-demo-88638.appspot.com",
+    messagingSenderId: "752500047079",
+    appId: "1:752500047079:web:4216e306a864639c943642"
   };
 
 // Initialize Firebase
@@ -28,14 +29,18 @@ bot.use(hydrate());
 
 const allRecords = new Set();
 
-const scheduleOptions = [
-    { value: "monday", label: "Понеділок 20:00" },
-    { value: "tuesday", label: "Вівторок 19:00" },
-    { value: "wednesday", label: "Середа 20:00" },
-    { value: "thursday", label: "Четвер 19:00" },
-    { value: "friday", label: "Пʼятниця 20:00" },
+const MAX_PARTICIPANTS = 8
+const schedule = [
+    {  day: 'Monday', time: '20:00', label: "Понеділок 20:00" },
+    {  day: 'Tuesday', time: '19:00', label: "Вівторок 19:00" },
+    {  day: 'Wednesday', time: '20:00', label: "Середа 20:00" },
+    {  day: 'Thursday', time: '19:00', label: "Четвер 19:00" },
+    {  day: 'Friday', time: '20:00', label: "Пʼятниця 20:00" },
+]
+
+const additionalButtonsInSchedule = [
     { value: "all_records", label: "📆 Показати мої записи"}
-];
+]
 
 const newRecordKeyboard = new InlineKeyboard()
     .text('➕ Додати новий запис', 'back');
@@ -47,6 +52,61 @@ const removeKeyboard = new InlineKeyboard()
     .text('🗑 Видалити запис', 'remove').row()
     .text('📍 Повернутись до меню', 'back');
 
+bot.on('message').filter((ctx) => {
+    return ctx.msg.chat?.username === "dianalyvytska" && ctx.msg.text === 'add_days'
+}, async (ctx) => {
+    const nextDates = getNextTrainingsDates(schedule);
+    const trainingsRef = collection(db, 'trainings');
+    nextDates.forEach(async (day, index) => {
+        const querySnap = await getDocs(query(trainingsRef, where("date", "==", day)))
+        if(querySnap.empty) {
+            addDoc(trainingsRef, {date: day, participants: [], label: schedule[index].label})
+        } else {
+            console.log(day, 'already here')
+        }
+    })
+
+    await ctx.reply(nextDates.toString())
+    await ctx.reply(`💓💓💓💓💓`)
+})
+
+bot.on('message').filter((ctx) => {
+    return ctx.msg.chat?.username === "dianalyvytska" && ctx.msg.text === 'get_schedule'
+}, async (ctx) => {
+    const now = new Date()
+    const trainingsRef = collection(db, 'trainings');
+    const querySnap = await getDocs(query(trainingsRef, where("date", ">=", now)))
+    let msg = ''
+    querySnap.forEach(training => {
+        const count = training.data().participants.reduce((acc, p) =>
+             acc +( p.status === 'signed' ? 1: 0), 0)
+        msg += `${training.data().label} ${count}/${MAX_PARTICIPANTS} \n\n`
+        msg += training.data().participants.map((p) => `${p.name} | ${p.status} \n`)
+    })
+
+    await ctx.reply(msg)
+})
+
+// For buttons with trainings
+bot.on("callback_query:data").filter(ctx => ctx.callbackQuery.data.startsWith('$'), async (ctx) => {
+    const trainingId = ctx.callbackQuery.data.slice(1)
+    const userId = ctx.msg.chat.id.toString()
+    const trainingRef = doc(db, 'trainings', trainingId);
+    const userRef = doc(db, 'users', userId);
+    const user = (await getDoc(userRef)).data()
+
+    const training = (await getDoc(trainingRef)).data()
+
+    if(training.participants.some(({id}) =>id===userId)) {
+        ctx.reply('Ви ВЖЕ записані')
+    }else {
+        updateDoc(trainingRef, {participants: arrayUnion({status: 'signed', id: userId, name: user.name})})
+        ctx.reply('Ви були записані')
+    }
+
+    await ctx.answerCallbackQuery(); // remove loading animation
+});
+
 bot.command('start').filter((ctx) => {
     return ctx.msg.chat?.username === "Ad_Impossibilia_Nemo_Obligatu" //"jullibondarenko"
 }, async (ctx) => {
@@ -56,7 +116,7 @@ bot.command('start').filter((ctx) => {
 bot.command('start', async (ctx) => {
     const userId = ctx.msg.from.id.toString()
     const userRef = doc(db, 'users', userId)
-    await setDoc(userRef, {id: ctx.msg.from.id})
+    await setDoc(userRef, {id: ctx.msg.from.id, name: ctx.msg.chat?.first_name})
 
     await ctx.reply(`Привіт, <b>${ctx.msg.chat?.first_name}</b>!\n\nДля запису напишіть Ваше <i>імʼя</i>.`, {
         parse_mode: 'HTML'
@@ -64,9 +124,21 @@ bot.command('start', async (ctx) => {
 });
 
 bot.on('message', async (ctx) => {
+    const trainingsRef = collection(db, 'trainings');
+    const now = new Date()
+    const querySnap = await getDocs(query(trainingsRef, where("date", ">=", now)))
+    const options = []
+    querySnap.forEach(day => {
+        const data =  day.data()
+        options.push({
+            value: '$'+day.id,
+            label: data.label
+        })
+    })
+    console.log(options)
     await ctx.reply('Для запису <i>оберіть</i> та <u>натисніть</u> на відповідний день із списку: ', {
         parse_mode: 'HTML',
-        reply_markup: keyboardGenerator(scheduleOptions)
+        reply_markup: keyboardGenerator(options)
     });
 });
 
