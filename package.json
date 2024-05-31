@@ -1,19 +1,28 @@
 {
-  "name": "cycle-bot",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "functions",
+  "description": "Cloud Functions for Firebase",
   "scripts": {
-    "start": "nodemon index.js"
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
   },
+  "engines": {
+    "node": "18"
+  },
+  "main": "index.js",
   "type": "module",
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@grammyjs/hydrate": "^1.4.1",
     "dotenv": "^16.4.5",
+    "firebase": "^10.12.2",
+    "firebase-admin": "^12.1.0",
+    "firebase-functions": "^5.0.0",
     "grammy": "^1.23.1",
     "nodemon": "^3.1.1"
+  },
+  "devDependencies": {
+    "firebase-functions-test": "^3.1.0"
   }
 }
