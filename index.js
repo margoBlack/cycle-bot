@@ -51,21 +51,37 @@ const removeKeyboard = new InlineKeyboard()
     .text('🗑 Видалити запис', 'remove').row()
     .text('📍 Повернутись до меню', 'back');
 
+let userName;
+
 bot.command('start').filter((ctx) => {
     return ctx.msg.chat?.username === "Ad_Impossibilia_Nemo_Obligatu" //"jullibondarenko"
 }, async (ctx) => {
-    await ctx.reply(`Привіт, ${ctx.msg.chat?.first_name}!`)
-})
+    userName = ctx.msg.chat?.first_name;
+    await ctx.reply(`Привіт, ${userName}!`)
+});
 
 bot.command('start', async (ctx) => {
     const userId = ctx.msg.from.id.toString()
     const userRef = doc(db, 'users', userId)
+    userName = ctx.msg.chat?.first_name
     await setDoc(userRef, {id: ctx.msg.from.id, name: ctx.msg.chat?.first_name})
 
-    await ctx.reply(`Привіт, <b>${ctx.msg.chat?.first_name}</b>!\n\nДля запису напишіть Ваше <i>імʼя</i>.`, {
+    await ctx.reply(`Привіт, <b>${ctx.msg.chat?.first_name}</b>!\n\nЩоб змінити імʼя або подивитись панель меню, натисніть на бургер у нижньому лівому кутку.\n\nДля запису напишіть будь-яке <i>повідомлення</i>.`, {
         parse_mode: 'HTML'
     })
 });
+
+// Change name logic
+
+// bot.command('change_name', async (ctx) => {
+//     const userId = ctx.msg.from.id.toString();
+//     const userRef = doc(db, 'users', userId);
+//     console.log(userRef);
+    // updateDoc(userRef, {name: ctx.msg.chat?.first_name})
+//     await ctx.reply(`${ctx.msg.chat?.first_name}`, {
+//         parse_mode: 'HTML'
+//     })
+// });
 
 bot.command('start_record').filter((ctx) => {
     return ctx.msg.chat?.username === "jullibondarenko"
@@ -113,7 +129,7 @@ bot.on('message', async (ctx) => {
             label: data.label
         })
     })
-    console.log('test', options);
+
     await ctx.reply('Для запису <i>оберіть</i> та <u>натисніть</u> на відповідний день із списку: ', {
         parse_mode: 'HTML',
         reply_markup: keyboardGenerator([...options, ...additionalButtonsInSchedule])
@@ -220,7 +236,11 @@ bot.api.setMyCommands([
     {
         command: 'get_schedule',
         description: 'Отримати список усіх записів на тиждень', 
-    }
+    },
+    // {
+    //     command: 'change_name',
+    //     description: 'Змінити імʼя', 
+    // }
 ]);
 
 //Error handlers
