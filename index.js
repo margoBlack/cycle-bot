@@ -67,8 +67,8 @@ bot.command('start', async (ctx) => {
     })
 });
 
-bot.on('message').filter((ctx) => {
-    return ctx.msg.text === 'add_days'
+bot.command('start_record').filter((ctx) => {
+    return ctx.msg.chat?.username === "jullibondarenko"
 }, async (ctx) => {
     const nextDates = getNextTrainingsDates(schedule);
     const trainingsRef = collection(db, 'trainings');
@@ -84,9 +84,7 @@ bot.on('message').filter((ctx) => {
     await ctx.reply(nextDates.toString());
 })
 
-bot.on('message').filter((ctx) => {
-    return ctx.msg.text === 'get_schedule' //ctx.msg.chat?.username === "Ad_Impossibilia_Nemo_Obligatur"
-}, async (ctx) => {
+bot.command('get_schedule', async (ctx) => {
     const now = new Date()
     const trainingsRef = collection(db, 'trainings');
     const querySnap = await getDocs(query(trainingsRef, where("date", ">=", now)))
@@ -94,11 +92,13 @@ bot.on('message').filter((ctx) => {
     querySnap.forEach(training => {
         const count = training.data().participants.reduce((acc, p) =>
              acc +( p.status === 'signed' ? 1: 0), 0)
-        msg += `${training.data().label} ${count}/${MAX_PARTICIPANTS} \n\n`
-        msg += training.data().participants.map((p) => `${p.name} | ${p.status} \n`)
+        msg += `<b><u>${training.data().label}</u></b> <i>${count}/${MAX_PARTICIPANTS}</i>\n\n`
+        msg += training.data().participants.map((p) => `${p.name} | ${p.status} \n\n`)
     })
 
-    await ctx.reply(msg)
+    await ctx.reply(msg, {
+        parse_mode: 'HTML'
+    })
 });
 
 bot.on('message', async (ctx) => {
@@ -133,7 +133,7 @@ bot.on("callback_query:data").filter(ctx => ctx.callbackQuery.data.startsWith('$
     const training = (await getDoc(trainingRef)).data();
 
     if (training.participants.some(({id}) =>id === userId)) {
-        await ctx.editMessageText(`<b>Ви вже записані!</b>\n\nВи записались на <u>${training.label}</u>.`, {
+        await ctx.editMessageText(`<b>Ви вже записані!</b>\n\nВи записані на <u>${training.label}</u>.`, {
             parse_mode: 'HTML',
             reply_markup: menuButtonKeyboard,
         });
@@ -141,7 +141,7 @@ bot.on("callback_query:data").filter(ctx => ctx.callbackQuery.data.startsWith('$
         updateDoc(trainingRef, {participants: arrayUnion({status: 'signed', id: userId, name: user.name})})
         addDoc(userTrainingRef, {date: training.date, label: training.label, status: "signed"});
         console.log("training", training)
-        await ctx.editMessageText(`<b>Дякую за запис!</b>\n\nВи записались на <u>${training.label}</u>.`, {
+        await ctx.editMessageText(`<b>Дякую за запис!</b>\n\nВи записані на <u>${training.label}</u>.`, {
             parse_mode: 'HTML',
             reply_markup: menuButtonKeyboard,
         });
@@ -207,6 +207,21 @@ bot.callbackQuery('all_records', async (ctx) => {
 //     });
 //     await ctx.answerCallbackQuery();
 // });
+
+bot.api.setMyCommands([
+    {
+        command: 'start',
+        description: 'Розпочати',
+    },
+    {
+        command: 'start_record',
+        description: 'Надати можливіть запису на тиждень',
+    },
+    {
+        command: 'get_schedule',
+        description: 'Отримати список усіх записів на тиждень', 
+    }
+]);
 
 //Error handlers
 bot.catch((err) => {
