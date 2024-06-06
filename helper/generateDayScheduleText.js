@@ -20,7 +20,9 @@ function generateDayScheduleText(training) {
 
     msg += `<b><u>${formatFirebaseDate(training.date)} ${training.label}</u></b> <i>${count}/${MAX_PARTICIPANTS}</i>\n`
     msg += generateOccupancyString(count, MAX_PARTICIPANTS) + '\n\n'
-    msg += training.participants.map((p) => `${STATUS_EMOJI[p.status]} ${p.name} \n\n`)
+    msg += training.participants.map((p) => `${STATUS_EMOJI[p.status]} ${p.name}\n`).join('')
+
+    msg+='\n\n'
 
     return msg
 }
