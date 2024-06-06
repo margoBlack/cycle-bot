@@ -13,6 +13,7 @@ import formatFirebaseDate from "./helper/formatFirebaseDate.js";
 import {endOfWeek, startOfWeek} from 'date-fns'
 import getStartOfNextWeek from "./helper/getStartOfNextWeek.js";
 import generateDayScheduleText from "./helper/generateDayScheduleText.js";
+import {format} from 'date-fns';
 
 const bot = new Bot(process.env.BOT_API_KEY);
 bot.use(hydrate());
@@ -62,7 +63,8 @@ bot.command('start_record').filter(forAdmins, async (ctx) => {
         }
     })
 
-    await ctx.reply(nextDates.toString());
+    const text = 'Наступні дати були додані у розклад:\n\n' + nextDates.map((date, index) => `${format(date, 'dd.MM')} ${SCHEDULE[index].label}`).join('\n')
+    await ctx.reply(text);
 })
 
 bot.command('get_current_schedule', async (ctx) => {
@@ -132,6 +134,17 @@ bot.on('message', async (ctx) => {
     });
 });
 
+bot.command('sign_up', async (ctx) => {
+    const options = await getTrainingOptionsTillEndOfNextWeek()
+
+    await ctx.reply('Для запису <i>оберіть</i> та <u>натисніть</u> на відповідний день із списку: ', {
+        parse_mode: 'HTML',
+        reply_markup: keyboardGenerator([...options, ...additionalButtonsInSchedule])
+    });
+});
+
+
+
 // For buttons with trainings
 bot.on("callback_query:data").filter(ctx => ctx.callbackQuery.data.startsWith('$'), async (ctx) => {
     await ctx.answerCallbackQuery();
@@ -176,7 +189,7 @@ bot.callbackQuery('all_records', async (ctx) => {
     const now = new Date()
     const querySnap = await getDocs(query(userTrainingRef, where("date", ">=", now)))
     const days = []
-    querySnap.forEach(day => days.push({label: day.data().label}));
+    querySnap.forEach(day => days.push({label: `${formatFirebaseDate(day.data().date)} ${day.data().label}`}));
 
     const scheduleOptionsText = days.length
         ? '<i>Ви записані на:</i> '
@@ -191,6 +204,10 @@ bot.api.setMyCommands([
     {
         command: 'start',
         description: 'Розпочати',
+    },
+    {
+        command: 'sign_up',
+        description: 'Записатись на заняття',
     },
     {
         command: 'start_record',
@@ -223,6 +240,7 @@ bot.catch((err) => {
       console.error("Unknown error:", e);
     }
   });
+
 
 export const startBot = functions.https.onRequest(webhookCallback(bot));
 
