@@ -1,24 +1,17 @@
 import 'dotenv/config';
 import {Bot, InlineKeyboard, webhookCallback} from 'grammy';
-import { hydrate } from '@grammyjs/hydrate';
-import { keyboardGenerator } from './helper/keyboardGenerator.js'
-import { db } from './firebase.js';
+import {hydrate} from '@grammyjs/hydrate';
+import {keyboardGenerator} from './helper/keyboardGenerator.js'
+import {db} from './firebase.js';
 import * as functions from "firebase-functions";
-import {doc,collection, setDoc, getDoc, updateDoc, addDoc, getDocs, query, where, arrayUnion} from "firebase/firestore"
+import {addDoc, arrayUnion, collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where} from "firebase/firestore"
 import getNextTrainingsDates from "./helper/getNextTrainingsDates.js";
+import {MAX_PARTICIPANTS, SCHEDULE} from "./constants.js";
+import {forAdmins} from "./helper/forAdmins.js";
 
 
 const bot = new Bot(process.env.BOT_API_KEY);
 bot.use(hydrate());
-
-const MAX_PARTICIPANTS = 8
-const schedule = [
-    {  day: 'Monday', time: '20:00', label: "Понеділок 20:00" },
-    {  day: 'Tuesday', time: '19:00', label: "Вівторок 19:00" },
-    {  day: 'Wednesday', time: '20:00', label: "Середа 20:00" },
-    {  day: 'Thursday', time: '19:00', label: "Четвер 19:00" },
-    {  day: 'Friday', time: '20:00', label: "Пʼятниця 20:00" },
-]
 
 const additionalButtonsInSchedule = [
     { value: "all_records", label: "📆 Показати мої записи"}
@@ -37,9 +30,7 @@ const removeKeyboard = new InlineKeyboard()
 
 let userName;
 
-bot.command('start').filter((ctx) => {
-    return ctx.msg.chat?.username === "Ad_Impossibilia_Nemo_Obligatu" //"jullibondarenko"
-}, async (ctx) => {
+bot.command('start').filter(forAdmins, async (ctx) => {
     userName = ctx.msg.chat?.first_name;
     await ctx.reply(`Привіт, ${userName}!`)
 });
@@ -55,27 +46,13 @@ bot.command('start', async (ctx) => {
     })
 });
 
-// Change name logic
-
-// bot.command('change_name', async (ctx) => {
-//     const userId = ctx.msg.from.id.toString();
-//     const userRef = doc(db, 'users', userId);
-//     console.log(userRef);
-    // updateDoc(userRef, {name: ctx.msg.chat?.first_name})
-//     await ctx.reply(`${ctx.msg.chat?.first_name}`, {
-//         parse_mode: 'HTML'
-//     })
-// });
-
-bot.command('start_record').filter((ctx) => {
-    return ctx.msg.chat?.username === "jullibondarenko"
-}, async (ctx) => {
-    const nextDates = getNextTrainingsDates(schedule);
+bot.command('start_record').filter(forAdmins, async (ctx) => {
+    const nextDates = getNextTrainingsDates(SCHEDULE);
     const trainingsRef = collection(db, 'trainings');
     nextDates.forEach(async (day, index) => {
         const querySnap = await getDocs(query(trainingsRef, where("date", "==", day)))
         if(querySnap.empty) {
-            addDoc(trainingsRef, {date: day, participants: [], label: schedule[index].label})
+            addDoc(trainingsRef, {date: day, participants: [], label: SCHEDULE[index].label})
         } else {
             console.log(day, 'already here')
         }
@@ -108,6 +85,7 @@ bot.on('message', async (ctx) => {
     const options = []
     querySnap.forEach(day => {
         const data = day.data()
+        console.log(data)
         options.push({
             value: '$'+day.id,
             label: data.label
@@ -184,30 +162,6 @@ bot.callbackQuery('all_records', async (ctx) => {
     });
 })
 
-// bot.callbackQuery(['monday_remove', 'tuesday_remove', 'wednesday_remove', 'thursday_remove', 'friday_remove'], async (ctx) => {
-//     console.log(ctx.callbackQuery.data);
-//     await ctx.callbackQuery.message.editText(`
-//     Аби видалити запис на <b>${ctx.callbackQuery.data}</b>, натисніть відповідну кнопку.\n\n
-// ВАЖЛИВО: <i>Якщо Ви хочете видалити запис менш ніж за <u>24 години</u>, ваш статус буде змінено на <b>"В процесі"</b>.
-// Після успішного пошуку людини на місце, Вам прийде повідомленно про зміну статусу - <b>"Видалено"</b>.</i>\n
-// <b>У іншому випадку Ви маєте сплатити компенсацію у розмірі одного заняття <u>250грн</u>.</b>
-//     `, {
-//         parse_mode: 'HTML',
-//         reply_markup: removeKeyboard,
-//     });
-//     await ctx.answerCallbackQuery();
-// });
-
-// bot.callbackQuery('remove', async (ctx) => {
-//     await ctx.callbackQuery.message.editText(`
-// Статус вашого запиту на видалення запису - <code>"В процесі"</code>.
-//     `, {
-//         parse_mode: 'HTML',
-//         reply_markup: menuKeyboard,
-//     });
-//     await ctx.answerCallbackQuery();
-// });
-
 bot.api.setMyCommands([
     {
         command: 'start',
@@ -242,3 +196,42 @@ bot.catch((err) => {
   });
 
 export const startBot = functions.https.onRequest(webhookCallback(bot));
+
+
+
+// bot.callbackQuery(['monday_remove', 'tuesday_remove', 'wednesday_remove', 'thursday_remove', 'friday_remove'], async (ctx) => {
+//     console.log(ctx.callbackQuery.data);
+//     await ctx.callbackQuery.message.editText(`
+//     Аби видалити запис на <b>${ctx.callbackQuery.data}</b>, натисніть відповідну кнопку.\n\n
+// ВАЖЛИВО: <i>Якщо Ви хочете видалити запис менш ніж за <u>24 години</u>, ваш статус буде змінено на <b>"В процесі"</b>.
+// Після успішного пошуку людини на місце, Вам прийде повідомленно про зміну статусу - <b>"Видалено"</b>.</i>\n
+// <b>У іншому випадку Ви маєте сплатити компенсацію у розмірі одного заняття <u>250грн</u>.</b>
+//     `, {
+//         parse_mode: 'HTML',
+//         reply_markup: removeKeyboard,
+//     });
+//     await ctx.answerCallbackQuery();
+// });
+
+// bot.callbackQuery('remove', async (ctx) => {
+//     await ctx.callbackQuery.message.editText(`
+// Статус вашого запиту на видалення запису - <code>"В процесі"</code>.
+//     `, {
+//         parse_mode: 'HTML',
+//         reply_markup: menuKeyboard,
+//     });
+//     await ctx.answerCallbackQuery();
+// });
+
+
+// Change name logic
+
+// bot.command('change_name', async (ctx) => {
+//     const userId = ctx.msg.from.id.toString();
+//     const userRef = doc(db, 'users', userId);
+//     console.log(userRef);
+// updateDoc(userRef, {name: ctx.msg.chat?.first_name})
+//     await ctx.reply(`${ctx.msg.chat?.first_name}`, {
+//         parse_mode: 'HTML'
+//     })
+// });
