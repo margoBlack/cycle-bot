@@ -6,9 +6,13 @@ import {db} from './firebase.js';
 import * as functions from "firebase-functions";
 import {addDoc, arrayUnion, collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where} from "firebase/firestore"
 import getNextTrainingsDates from "./helper/getNextTrainingsDates.js";
-import {MAX_PARTICIPANTS, SCHEDULE} from "./constants.js";
+import {SCHEDULE} from "./constants.js";
 import {forAdmins} from "./helper/forAdmins.js";
-
+import getEndOfNextWeek from "./helper/getEndOfNextWeek.js";
+import formatFirebaseDate from "./helper/formatFirebaseDate.js";
+import {endOfWeek, startOfWeek} from 'date-fns'
+import getStartOfNextWeek from "./helper/getStartOfNextWeek.js";
+import generateDayScheduleText from "./helper/generateDayScheduleText.js";
 
 const bot = new Bot(process.env.BOT_API_KEY);
 bot.use(hydrate());
@@ -61,36 +65,66 @@ bot.command('start_record').filter(forAdmins, async (ctx) => {
     await ctx.reply(nextDates.toString());
 })
 
-bot.command('get_schedule', async (ctx) => {
+bot.command('get_current_schedule', async (ctx) => {
     const now = new Date()
+    const startOfThisWeek = startOfWeek(now, { weekStartsOn: 1 });
+    const endOfThisWeek = endOfWeek(now, { weekStartsOn: 1 });
     const trainingsRef = collection(db, 'trainings');
-    const querySnap = await getDocs(query(trainingsRef, where("date", ">=", now)))
+    const querySnap = await getDocs(query(trainingsRef, where("date", ">=", startOfThisWeek), where("date", "<=", endOfThisWeek)))
+
     let msg = ''
     querySnap.forEach(training => {
-        const count = training.data().participants.reduce((acc, p) =>
-             acc +( p.status === 'signed' ? 1: 0), 0)
-        msg += `<b><u>${training.data().label}</u></b> <i>${count}/${MAX_PARTICIPANTS}</i>\n\n`
-        msg += training.data().participants.map((p) => `${p.name} | ${p.status} \n\n`)
+        msg += generateDayScheduleText(training.data())
     })
+
+    if(!msg) {
+        msg = 'Немає розкладу на цей тиждень'
+    }
 
     await ctx.reply(msg, {
         parse_mode: 'HTML'
     })
 });
 
-bot.on('message', async (ctx) => {
+bot.command('get_next_schedule', async (ctx) => {
+    const startOfNextWeek = getStartOfNextWeek();
+    const endOfNextWeek = getEndOfNextWeek();
+    const trainingsRef = collection(db, 'trainings');
+
+    const querySnap = await getDocs(query(trainingsRef, where("date", ">=", startOfNextWeek), where("date", "<=", endOfNextWeek)))
+
+    let msg = ''
+    querySnap.forEach(training => {
+        msg += generateDayScheduleText(training.data())
+    })
+
+    if(!msg) {
+        msg = 'Немає розкладу на наступний тиждень'
+    }
+
+    await ctx.reply(msg, {
+        parse_mode: 'HTML'
+    })
+});
+
+async function getTrainingOptionsTillEndOfNextWeek(){
     const trainingsRef = collection(db, 'trainings');
     const now = new Date()
-    const querySnap = await getDocs(query(trainingsRef, where("date", ">=", now)))
+    const querySnap = await getDocs(query(trainingsRef, where("date", ">=", now), where("date", "<=", getEndOfNextWeek())))
     const options = []
     querySnap.forEach(day => {
         const data = day.data()
-        console.log(data)
         options.push({
-            value: '$'+day.id,
-            label: data.label
+            value: `$${day.id}`,
+            label: `${formatFirebaseDate(data.date)} ${data.label}`
         })
     })
+
+    return options
+}
+
+bot.on('message', async (ctx) => {
+    const options = await getTrainingOptionsTillEndOfNextWeek()
 
     await ctx.reply('Для запису <i>оберіть</i> та <u>натисніть</u> на відповідний день із списку: ', {
         parse_mode: 'HTML',
@@ -127,17 +161,8 @@ bot.on("callback_query:data").filter(ctx => ctx.callbackQuery.data.startsWith('$
 });                 
 
 bot.callbackQuery('back', async (ctx) => {
-    const trainingsRef = collection(db, 'trainings');
-    const now = new Date()
-    const querySnap = await getDocs(query(trainingsRef, where("date", ">=", now)))
-    const options = []
-    querySnap.forEach(day => {
-        const data = day.data()
-        options.push({
-            value: '$'+day.id,
-            label: data.label
-        })
-    })
+    const options = await getTrainingOptionsTillEndOfNextWeek()
+
     await ctx.callbackQuery.message.editText(`Для запису <i>оберіть</i> та <u>натисніть</u> на відповідний день із списку:`, {
         parse_mode: 'HTML',
         reply_markup: keyboardGenerator([...options, ...additionalButtonsInSchedule]),
@@ -172,8 +197,12 @@ bot.api.setMyCommands([
         description: 'Надати можливіть запису на тиждень',
     },
     {
-        command: 'get_schedule',
-        description: 'Отримати список усіх записів на тиждень', 
+        command: 'get_current_schedule',
+        description: 'Отримати список усіх записів на цей тиждень',
+    },
+    {
+        command: 'get_next_schedule',
+        description: 'Отримати список усіх записів на наступний тиждень',
     },
     // {
     //     command: 'change_name',

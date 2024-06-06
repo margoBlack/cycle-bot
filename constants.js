@@ -8,3 +8,7 @@ export const SCHEDULE = [
     {  day: 'Thursday', time: '19:00', label: "Четвер 19:00" },
     {  day: 'Friday', time: '20:00', label: "Пʼятниця 20:00" },
 ]
+
+export const STATUS_EMOJI = {
+    signed: '☑'
+}
