@@ -2,27 +2,11 @@ import 'dotenv/config';
 import {Bot, InlineKeyboard, webhookCallback} from 'grammy';
 import { hydrate } from '@grammyjs/hydrate';
 import { keyboardGenerator } from './helper/keyboardGenerator.js'
-import {initializeApp} from "firebase/app";
-import {getFirestore} from "firebase/firestore";
+import { db } from './firebase.js';
 import * as functions from "firebase-functions";
 import {doc,collection, setDoc, getDoc, updateDoc, addDoc, getDocs, query, where, arrayUnion} from "firebase/firestore"
 import getNextTrainingsDates from "./helper/getNextTrainingsDates.js";
 
-
-const firebaseConfig = {
-    apiKey: "AIzaSyA4BtOR_2xBX6vmuqES5a6qVfwfp3M3Cwo",
-    apiKey: "AIzaSyA4BtOR_2xBX6vmuqES5a6qVfwfp3M3Cwo",
-    authDomain: "cycle-bot-997b0.firebaseapp.com",
-    projectId: "cycle-bot-997b0",
-    storageBucket: "cycle-bot-997b0.appspot.com",
-    messagingSenderId: "748030380319",
-    appId: "1:748030380319:web:83e0d7c7aa35bac646c82a"
-  };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-// Initialize Cloud Firestore and get a reference to the service
-const db = getFirestore(app);
 
 const bot = new Bot(process.env.BOT_API_KEY);
 bot.use(hydrate());
