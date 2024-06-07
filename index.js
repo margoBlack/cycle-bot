@@ -147,7 +147,6 @@ bot.command('sign_up', async (ctx) => {
 
 // For buttons with trainings
 bot.on("callback_query:data").filter(ctx => ctx.callbackQuery.data.startsWith('$'), async (ctx) => {
-    await ctx.answerCallbackQuery();
     const trainingId = ctx.callbackQuery.data.slice(1);
     const userId = ctx.msg.chat.id.toString();
     const trainingRef = doc(db, 'trainings', trainingId);
@@ -171,6 +170,7 @@ bot.on("callback_query:data").filter(ctx => ctx.callbackQuery.data.startsWith('$
             reply_markup: menuButtonKeyboard,
         });
     }
+    await ctx.answerCallbackQuery();
 });                 
 
 bot.callbackQuery('back', async (ctx) => {
